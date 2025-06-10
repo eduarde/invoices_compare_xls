@@ -3,6 +3,39 @@ from abc import ABC, abstractmethod
 from decimal import Decimal, ROUND_HALF_UP
 
 
+def make_diff_dataframes(
+    df_external: pd.DataFrame, df_internal: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Compares two DataFrames containing invoice data and returns a DataFrame
+    """
+    return df_external[~df_external["id"].isin(df_internal["id"])]
+
+
+def process_mismatches(df_external: pd.DataFrame, df_internal: pd.DataFrame) -> list:
+    """
+    Compares two DataFrames containing invoice data and identifies mismatches
+    based on the 'id' and 'value' columns.
+    It returns a list of dictionaries with the 'id', 'theirs' (external value),
+    and 'ours' (internal value) for mismatched entries where the absolute difference in 'value'."""
+    merged_df = pd.merge(
+        df_external, df_internal, on="id", suffixes=("_theirs", "_ours")
+    )
+
+    mismatched_values = merged_df[
+        (merged_df["value_theirs"] - merged_df["value_ours"]).abs() >= 0.06
+    ]
+
+    return mismatched_values.apply(
+        lambda row: {
+            "id": row["id"],
+            "theirs": row["value_theirs"],
+            "ours": row["value_ours"],
+        },
+        axis=1,
+    ).tolist()
+
+
 class ETL(ABC):
     @abstractmethod
     def extract(self) -> pd.DataFrame:
