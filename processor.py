@@ -31,7 +31,7 @@ class ExcelInvoiceLoader(ETL):
         self,
         file_path: str,
         columns: list,
-        header_row: int = 0,
+        header_row: int | list = 0,
         replace_z: bool = False,
         filters: dict = None,
     ):
@@ -45,11 +45,50 @@ class ExcelInvoiceLoader(ETL):
     def _excel_round(value):
         return float(Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
+    def _flatten_columns(self, cols):
+        return [
+            " ".join(
+                level.strip()
+                for level in col
+                if isinstance(level, str) and not level.strip().startswith("Unnamed")
+            ).strip()
+            for col in cols
+        ]
+
+    def _read_excel_usecols(self):
+        """
+        Reads an Excel file using specified columns when header is a single row.
+        """
+        return pd.read_excel(
+            self.file_path, usecols=self.columns, header=self.header_row
+        )
+
+    def _read_excel_full(self):
+        """
+        Reads an Excel file without using specified columns when header is a multi row.
+        """
+
+        df = pd.read_excel(self.file_path, header=self.header_row)
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = self._flatten_columns(df.columns)
+        else:
+            df.columns = df.columns.str.strip()
+
+        missing = [col for col in self.columns if col not in df.columns]
+        if missing:
+            raise ValueError(f"Missing columns: {missing}")
+
+        return df[self.columns]
+
     def extract(self) -> pd.DataFrame:
         """
         Extracts specified columns from an Excel file and applies optional filters.
         """
-        df = pd.read_excel(self.file_path, usecols=self.columns, header=self.header_row)
+        if isinstance(self.header_row, int):
+            df = self._read_excel_usecols()
+        else:
+            df = self._read_excel_full()
+
         if self.filters:
             for col, val in self.filters.items():
                 if col in df.columns:

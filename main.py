@@ -30,7 +30,8 @@ def load_files(invoice_type: str, external_invoice_file: Optional[IO] = None) ->
 
     external_file_loader = ExcelInvoiceLoader(
         file_path=external_invoice_file,
-        columns=["ndp", "suma_c"],
+        columns=["Nr. doc.", "Sume debitoare"],
+        header_row=[7,8],
         replace_z=invoice_type == "FB",
         filters={},
     )
@@ -102,8 +103,8 @@ async def compare_data(
             },
             axis=1,
         ).tolist()
-    except Exception as e:
-        return {"Error processing the invoice files": str(e)}
+    # except Exception as e:
+    #     return {"Error processing the invoice files": str(e)}
     finally:
         if external_invoice:
             await external_invoice.close()
