@@ -142,6 +142,10 @@ async def compare_multi_data(
             return {"error": "No valid data files provided."}
 
         df_external = pd.concat(results, ignore_index=True)
+        df_external = df_external.groupby("id", as_index=False)["value"].sum()
+        df_external["value"] = df_external["value"].apply(
+            ExcelInvoiceLoader._excel_round
+        )
 
         missing_in_ours_df = make_diff_dataframes(df_external, df_internal)
         mismatches = process_mismatches(df_external, df_internal)

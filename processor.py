@@ -23,7 +23,7 @@ def process_mismatches(df_external: pd.DataFrame, df_internal: pd.DataFrame) -> 
     )
 
     mismatched_values = merged_df[
-        (merged_df["value_theirs"] - merged_df["value_ours"]).abs() >= 0.06
+        (merged_df["value_theirs"] - merged_df["value_ours"]).abs() >= 0.1
     ]
 
     return mismatched_values.apply(
