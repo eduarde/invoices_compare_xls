@@ -1,0 +1,88 @@
+import pandas as pd
+from abc import ABC, abstractmethod
+from decimal import Decimal, ROUND_HALF_UP
+
+
+class ETL(ABC):
+    @abstractmethod
+    def extract(self) -> pd.DataFrame:
+        """
+        Extracts data from a raw input file.
+        """
+        pass
+
+    @abstractmethod
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Transforms the raw DataFrame into a cleaned format.
+        """
+        pass
+
+    @abstractmethod
+    def load(self) -> pd.DataFrame:
+        """
+        Extracts and transforms the data into final format.
+        """
+        pass
+
+
+class ExcelInvoiceLoader(ETL):
+    def __init__(
+        self,
+        file_path: str,
+        columns: list,
+        header_row: int = 0,
+        replace_z: bool = False,
+        filters: dict = None,
+    ):
+        self.file_path = file_path
+        self.columns = columns
+        self.header_row = header_row
+        self.replace_z = replace_z
+        self.filters = filters
+
+    @staticmethod
+    def _excel_round(value):
+        return float(Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+    def extract(self) -> pd.DataFrame:
+        """
+        Extracts specified columns from an Excel file and applies optional filters.
+        """
+        df = pd.read_excel(self.file_path, usecols=self.columns, header=self.header_row)
+        if self.filters:
+            for col, val in self.filters.items():
+                if col in df.columns:
+                    if isinstance(val, (list, tuple, set)):
+                        df = df[df[col].isin(val)]
+                    else:
+                        df = df[df[col] == val]
+        return df
+
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Transforms the DataFrame by renaming columns id and value
+        and grouping by the id column to sum the values.
+        If replace_z is True, it replaces 'Z 0x' with "BONF-000000x" in the id column.
+        """
+        df = df.rename(columns={self.columns[0]: "id", self.columns[1]: "value"})
+        df = df.dropna(subset=["id", "value"])
+
+        if self.replace_z:
+            df["id"] = df["id"].astype(str)
+            df["id"] = df["id"].str.replace(r"^z(?=\d)", "Z ", regex=True)
+            df["id"] = df["id"].str.replace(
+                r"^Z (\d+)$", lambda m: f"BONF-{int(m.group(1)):07d}", regex=True
+            )
+
+        df = df.groupby("id", as_index=False)["value"].sum()
+        df["value"] = df["value"].apply(self._excel_round)
+        return df
+
+    def load(self) -> pd.DataFrame:
+        """
+        1. Extract data from an Excel file with specified columns
+        2. Transforms the data by renaming and grouping
+        """
+        df = self.extract()
+        return self.transform(df)
