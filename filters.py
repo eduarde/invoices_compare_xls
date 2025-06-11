@@ -187,64 +187,64 @@ PARCARE_FILTERS = {
 REDUCERI_FILTERS = {
     # 709
     "Nume": (
-        "Tips Restaurant",
+        # "Tips Restaurant",
         "Adj. Tips Restaurant",
 
-        "Accommodation",
+        # "Accommodation",
         "Adjustment Accomodation",
 
-        "BQT Lunch Alcohol",
+        # "BQT Lunch Alcohol",
         "Adjustment BQT Lunch Alcohol",
 
-        "BQT Lunch Food (C)",
+        # "BQT Lunch Food (C)",
         "Adjustment BQT Lunch Food (C)",
 
-        "BQT Lunch NonAlcohol (C)",
+        # "BQT Lunch NonAlcohol (C)",
         "Adjustment BQT Lunch NonAlcohol (C)",
 
-        "Breakfast",
+        # "Breakfast",
         "Adjustment Breakfast",
 
-        "Minibar Alcohol",
+        # "Minibar Alcohol",
         "Adjustment Minibar Alcohol",
 
-        "Parking",
+        # "Parking",
         "Adjustment Parking",
 
-        "Restaurant Dinner Other",
+        # "Restaurant Dinner Other",
         "Adjustment Restaurant Dinner Other",
 
-        "Restaurant Lunch Alcohol",
+        # "Restaurant Lunch Alcohol",
         "Adjustment Restaurant Lunch Alcohol",
 
-        "Restaurant Lunch Food (C)",
+        # "Restaurant Lunch Food (C)",
         "Adjustment Restaurant Lunch Food (C)",
 
-        "Restaurant Lunch NonAlcohol (A)",
+        # "Restaurant Lunch NonAlcohol (A)",
         "Adjustment Restaurant Lunch NonAlcohol (A)",
 
-        "Restaurant Lunch NonAlcohol (C)",
+        # "Restaurant Lunch NonAlcohol (C)",
         "Adjustment Restaurant Lunch NonAlcohol (C)",
 
-        "Room Service Lunch Other",
+        # "Room Service Lunch Other",
         "Adjustment Room Service Lunch Other",
 
-        "Bus/City Tour",
+        # "Bus/City Tour",
         "Adjustment Shuttle Bus/City Tour",
 
-        "SPA Facial",
+        # "SPA Facial",
         "Adjustment SPA Facial",
 
-        "SPA Massage",
+        # "SPA Massage",
         "Adjustment SPA Massage",
 
-        "SPA Other"
+        # "SPA Other"
         "Adjustment SPA Other",
 
-        "SPA Products",
+        # "SPA Products",
         "Adjustment SPA Products",
 
-        "SPA Treatment",
+        # "SPA Treatment",
         "Adjustment SPA Treatment",
     ),
 }

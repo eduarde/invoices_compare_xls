@@ -88,21 +88,26 @@ async def compare_data(
         missing_in_ours_df = make_diff_dataframes(df_external, data_ours_bulk)
         mismatches = process_mismatches(df_external, df_internal)
 
-    except Exception as e:
-        print(f"Error processing the invoice files {e}")
+    # except Exception as e:
+    #     print(f"Error processing the invoice files {e}")
     finally:
         if external_invoice:
             await external_invoice.close()
 
     return {
-        "COMPARED_INVOICE": external_invoice.filename,
-        "INVOICES_OURS": {
-            "missing": missing_in_ours_df,
-            "total_missing": len(missing_in_ours_df),
+        "EXTERNAL_INVOICE_FILE": external_invoice.filename,
+        "MISSING": {
+            "description": "Invoices that are present in the external file but missing in our records.",
+            "invoices": {
+                "id_view": ", ".join(item["id"] for item in missing_in_ours_df),
+                "detail_view": missing_in_ours_df,
+            },
+            "total": len(missing_in_ours_df),
         },
-        "MISMATCH_ANALYSIS": {
+        "MISMATCH": {
+            "description": "Invoices that have mismatched values between the external file and our records.",
             "invoices": mismatches,
-            "total_mismatches": len(mismatches),
+            "total": len(mismatches),
         },
     }
 
@@ -123,6 +128,7 @@ async def compare_multi_data(
     df_internal = internal_file_loader.load()
 
     results = []
+    file_names = []
     for file in external_invoices:
         try:
             external_file_loader = ExcelInvoiceLoader(
@@ -131,6 +137,7 @@ async def compare_multi_data(
                 header_row=[7, 8],
                 replace_z=file.filename.startswith("fisa 461"),
             )
+            file_names.append(file.filename)
             results.append(external_file_loader.load())
 
         except Exception as e:
@@ -151,12 +158,18 @@ async def compare_multi_data(
         mismatches = process_mismatches(df_external, df_internal)
 
     return {
-        "INVOICES_OURS": {
-            "missing": missing_in_ours_df,
-            "total_missing": len(missing_in_ours_df),
+        "EXTERNAL_INVOICE_FILE": " ".join(file_names, ", "),
+        "MISSING": {
+            "description": "Invoices that are present in the external file but missing in our records.",
+            "invoices": {
+                "id_view": missing_in_ours_df["_id"].tolist(),
+                "detail_view": missing_in_ours_df,
+            },
+            "total": len(missing_in_ours_df),
         },
-        "MISMATCH_ANALYSIS": {
+        "MISMATCH": {
+            "description": "Invoices that have mismatched values between the external file and our records.",
             "invoices": mismatches,
-            "total_mismatches": len(mismatches),
+            "total": len(mismatches),
         },
     }

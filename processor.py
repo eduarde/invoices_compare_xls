@@ -1,3 +1,4 @@
+import re
 import pandas as pd
 from abc import ABC, abstractmethod
 from decimal import Decimal, ROUND_HALF_UP
@@ -9,7 +10,15 @@ def make_diff_dataframes(
     """
     Compares two DataFrames containing invoice data and returns a DataFrame
     """
-    return df_external[~df_external["id"].isin(df_internal["id"])]
+    diff_df = df_external[~df_external["id"].isin(df_internal["id"])]
+    return diff_df.apply(
+        lambda row: {
+            "id": row["_id"],
+            "value": row["value"],
+        },
+        axis=1,
+    ).tolist()
+
 
 
 def process_mismatches(df_external: pd.DataFrame, df_internal: pd.DataFrame) -> list:
@@ -19,7 +28,7 @@ def process_mismatches(df_external: pd.DataFrame, df_internal: pd.DataFrame) -> 
     It returns a list of dictionaries with the 'id', 'theirs' (external value),
     and 'ours' (internal value) for mismatched entries where the absolute difference in 'value'."""
     merged_df = pd.merge(
-        df_external, df_internal, on="id", suffixes=("_theirs", "_ours")
+        df_external, df_internal, on="_id", suffixes=("_theirs", "_ours")
     )
 
     mismatched_values = merged_df[
@@ -28,7 +37,7 @@ def process_mismatches(df_external: pd.DataFrame, df_internal: pd.DataFrame) -> 
 
     return mismatched_values.apply(
         lambda row: {
-            "id": row["id"],
+            "id": row["_id"],
             "theirs": row["value_theirs"],
             "ours": row["value_ours"],
         },
@@ -113,6 +122,12 @@ class ExcelInvoiceLoader(ETL):
 
         return df[self.columns]
 
+    def normalize_id(self, id_val):
+        """Remove spaces and dashes, and uppercase the ID."""
+        if isinstance(id_val, str):
+            return re.sub(r"[\s\-]", "", id_val).upper()
+        return id_val
+
     def extract(self) -> pd.DataFrame:
         """
         Extracts specified columns from an Excel file and applies optional filters.
@@ -147,7 +162,12 @@ class ExcelInvoiceLoader(ETL):
                 r"^Z (\d+)$", lambda m: f"BONF-{int(m.group(1)):07d}", regex=True
             )
 
-        df = df.groupby("id", as_index=False)["value"].sum()
+        df["_id"] = df["id"].astype(str)
+        df["id"] = df["id"].apply(self.normalize_id)
+
+        # Group and round
+        df = df.groupby("id", as_index=False).agg({"value": "sum", "_id": "first"})
+
         df["value"] = df["value"].apply(self._excel_round)
         return df
 
