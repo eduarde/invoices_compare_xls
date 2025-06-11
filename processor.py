@@ -20,7 +20,6 @@ def make_diff_dataframes(
     ).tolist()
 
 
-
 def process_mismatches(df_external: pd.DataFrame, df_internal: pd.DataFrame) -> list:
     """
     Compares two DataFrames containing invoice data and identifies mismatches
@@ -76,12 +75,14 @@ class ExcelInvoiceLoader(ETL):
         header_row: int | list = 0,
         replace_z: bool = False,
         filters: dict = None,
+        exclude: dict = None,
     ):
         self.file_path = file_path
         self.columns = columns
         self.header_row = header_row
         self.replace_z = replace_z
         self.filters = filters
+        self.exclude = exclude
 
     @staticmethod
     def _excel_round(value):
@@ -122,7 +123,33 @@ class ExcelInvoiceLoader(ETL):
 
         return df[self.columns]
 
-    def normalize_id(self, id_val):
+    def _apply_filters(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Apply self.filters to the DataFrame."""
+        if self.filters:
+            for col, val in self.filters.items():
+                if col in df.columns:
+                    if isinstance(val, (list, tuple, set)):
+                        df = df[df[col].isin(val)]
+                    else:
+                        df = df[df[col] == val]
+        return df
+
+    def _apply_exclude(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Apply self.exclude to the DataFrame."""
+
+        if self.exclude:
+            for col, val in self.exclude.items():
+                if col in df.columns:
+                    df[col] = df[col].astype(str).str.strip()
+                    if isinstance(val, (list, tuple, set)):
+                        val_set = set(str(v).strip() for v in val)
+                        df = df[~df[col].isin(val_set)]
+                    else:
+                        df = df[df[col] != str(val).stri1lp()]
+        return df
+
+    @staticmethod
+    def normalize_id(id_val):
         """Remove spaces and dashes, and uppercase the ID."""
         if isinstance(id_val, str):
             return re.sub(r"[\s\-]", "", id_val).upper()
@@ -137,13 +164,9 @@ class ExcelInvoiceLoader(ETL):
         else:
             df = self._read_excel_full()
 
-        if self.filters:
-            for col, val in self.filters.items():
-                if col in df.columns:
-                    if isinstance(val, (list, tuple, set)):
-                        df = df[df[col].isin(val)]
-                    else:
-                        df = df[df[col] == val]
+        df = self._apply_filters(df)
+        df = self._apply_exclude(df)
+
         return df
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:

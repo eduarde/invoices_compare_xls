@@ -189,61 +189,42 @@ REDUCERI_FILTERS = {
     "Nume": (
         # "Tips Restaurant",
         "Adj. Tips Restaurant",
-
         # "Accommodation",
         "Adjustment Accomodation",
-
         # "BQT Lunch Alcohol",
         "Adjustment BQT Lunch Alcohol",
-
         # "BQT Lunch Food (C)",
         "Adjustment BQT Lunch Food (C)",
-
         # "BQT Lunch NonAlcohol (C)",
         "Adjustment BQT Lunch NonAlcohol (C)",
-
         # "Breakfast",
         "Adjustment Breakfast",
-
         # "Minibar Alcohol",
         "Adjustment Minibar Alcohol",
-
         # "Parking",
         "Adjustment Parking",
-
         # "Restaurant Dinner Other",
         "Adjustment Restaurant Dinner Other",
-
         # "Restaurant Lunch Alcohol",
         "Adjustment Restaurant Lunch Alcohol",
-
         # "Restaurant Lunch Food (C)",
         "Adjustment Restaurant Lunch Food (C)",
-
         # "Restaurant Lunch NonAlcohol (A)",
         "Adjustment Restaurant Lunch NonAlcohol (A)",
-
         # "Restaurant Lunch NonAlcohol (C)",
         "Adjustment Restaurant Lunch NonAlcohol (C)",
-
         # "Room Service Lunch Other",
         "Adjustment Room Service Lunch Other",
-
         # "Bus/City Tour",
         "Adjustment Shuttle Bus/City Tour",
-
         # "SPA Facial",
         "Adjustment SPA Facial",
-
         # "SPA Massage",
         "Adjustment SPA Massage",
-
         # "SPA Other"
         "Adjustment SPA Other",
-
         # "SPA Products",
         "Adjustment SPA Products",
-
         # "SPA Treatment",
         "Adjustment SPA Treatment",
     ),
@@ -295,4 +276,35 @@ FILTER_MAP = {
     "NOSHOW": NOSHOW_FILTERS,
     "ROOMSERVICE": ROOMSERVICE_FILTERS,
     "DIVERSE": DIVERSE_FILTERS,
+}
+
+
+AVANS_FILTERS = {
+    "Nume": (
+        "AVANS CLIENT",
+        "AVANS CLIENT 19%",
+        "AVANS CLIENT 9%",
+        "Avans servicii 19%",
+        "Avans servicii 9%",
+    ),
+}
+
+TAXE_FILTERS = {
+    "Nume": (
+        "Taxa de promovare Turistica",
+        "Taxa Salvamont",
+        "Taxa promovare turistica",
+    ),
+}
+
+
+def build_exclude_filters(*filter_dicts):
+    combined = []
+    for fd in filter_dicts:
+        combined.extend(fd.get("Nume", []))
+    return {"Nume": tuple(combined)}
+
+
+EXCLUDE_FILTER_MAP = {
+    "RECONCILIERI": build_exclude_filters(AVANS_FILTERS, REDUCERI_FILTERS, TAXE_FILTERS)
 }

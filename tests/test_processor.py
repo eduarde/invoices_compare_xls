@@ -43,7 +43,7 @@ def test_excel_invoice_loader_sum():
     result_df = result_df.sort_values(by="id").reset_index(drop=True)
     expected_df = expected_df.sort_values(by="id").reset_index(drop=True)
 
-    pd.testing.assert_frame_equal(result_df, expected_df)
+    pd.testing.assert_frame_equal(result_df[["id", "value"]], expected_df)
 
 
 def test_make_diff_dataframes_returns_missing_rows():
@@ -51,6 +51,10 @@ def test_make_diff_dataframes_returns_missing_rows():
         {"id": ["A001", "A002", "A003"], "value": [100, 200, 300]}
     )
     df_internal = pd.DataFrame({"id": ["A002", "A003"], "value": [200, 300]})
+
+    # Add _id columns to match processor.py expectations
+    df_external["_id"] = df_external["id"]
+    df_internal["_id"] = df_internal["id"]
 
     result = make_diff_dataframes(df_external, df_internal)
 
@@ -72,6 +76,10 @@ def test_process_mismatches_returns_differences_above_threshold():
             "value": [100.00, 200.00, 299.95, 400.08],
         }
     )
+
+    # Add _id columns to match processor.py expectations
+    df_external["_id"] = df_external["id"]
+    df_internal["_id"] = df_internal["id"]
 
     result = process_mismatches(df_external, df_internal)
 
