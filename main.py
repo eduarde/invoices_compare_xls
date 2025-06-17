@@ -41,21 +41,19 @@ def load_files(
 
     filename = external_invoice.filename.lower()
     columns_map = {
-        "fisa 709": ["Nr. doc.", "Cont  corespondent"],
-        "default": ["Nr. doc.", "Sume debitoare"],
+        "709": ["ndp", "suma_d"],
+        "default": ["ndp", "suma_c"],
     }
     columns = (
-        columns_map["fisa 709"]
-        if filename.startswith("fisa 709")
-        else columns_map["default"]
+        columns_map["709"] if filename.startswith("709") else columns_map["default"]
     )
-    replace_z = filename.startswith("fisa 461")
-    invert_sign = filename.startswith("fisa 709")
+    replace_z = filename.startswith("461")
+    invert_sign = filename.startswith("709")
 
     external_file_loader = ExcelInvoiceLoader(
         file_path=external_invoice.file,
         columns=columns,
-        header_row=[7, 8],
+        header_row=0,
         replace_z=replace_z,
         invert_sign=invert_sign,
         filters={},
@@ -71,25 +69,28 @@ async def _process_external_invoices(external_invoices: List[UploadFile]) -> tup
     """
     results = []
     file_names = []
+
     for file in external_invoices:
         try:
             filename = file.filename.lower()
+
             columns_map = {
-                "fisa 709": ["Nr. doc.", "Cont  corespondent"],
-                "default": ["Nr. doc.", "Sume debitoare"],
+                "709": ["ndp", "suma_d"],
+                "default": ["ndp", "suma_c"],
             }
             columns = (
-                columns_map["fisa 709"]
-                if filename.startswith("fisa 709")
+                columns_map["709"]
+                if filename.startswith("709")
                 else columns_map["default"]
             )
-            replace_z = filename.startswith("fisa 461")
-            invert_sign = filename.startswith("fisa 709")
+
+            replace_z = filename.startswith("461")
+            invert_sign = filename.startswith("709")
 
             external_file_loader = ExcelInvoiceLoader(
                 file_path=file.file,
                 columns=columns,
-                header_row=[7, 8],
+                header_row=0,
                 replace_z=replace_z,
                 invert_sign=invert_sign,
             )

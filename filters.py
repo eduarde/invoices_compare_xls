@@ -288,9 +288,15 @@ def build_exclude_filters(*filter_dicts):
 
 
 EXCLUDE_FILTER_MAP = {
-    "AVANS_&_TAXE": build_exclude_filters(
+    "TAXE": TAXE_FILTERS,
+    "AVANS_TAXE": build_exclude_filters(
         AVANS_FILTERS,
         TAXE_FILTERS,
     ),
-    "TAXE": TAXE_FILTERS,
+
+    "AVANS_TAXE_REDUCERI": build_exclude_filters(
+        AVANS_FILTERS,
+        TAXE_FILTERS,
+        REDUCERI_FILTERS,
+    ),
 }
