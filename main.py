@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Form, Request, Query
 from fastapi.responses import FileResponse
-from typing import Literal, Optional, IO, List
+from typing import Literal, List
 from filters import FILTER_MAP, EXCLUDE_FILTER_MAP
 from processor import (
     ExcelInvoiceLoader,
