@@ -16,7 +16,9 @@ from processor import (
 app = FastAPI()
 
 
-def load_files(invoice_type: str, external_invoice_file: Optional[IO] = None) -> tuple:
+def load_files(
+    external_invoice: UploadFile, filter: str | None, exclude: str | None
+) -> tuple:
     """
     Load files and return the transformed data as dataframes.
     Our file: a local file with all the invoices in the hotel.
@@ -32,16 +34,30 @@ def load_files(invoice_type: str, external_invoice_file: Optional[IO] = None) ->
         ],
         header_row=5,
         replace_z=False,
-        filters=FILTER_MAP.get(invoice_type, {}),
-        exclude=EXCLUDE_FILTER_MAP.get("RECONCILIERI", {}),
+        filters=FILTER_MAP.get(filter, {}),
+        exclude=EXCLUDE_FILTER_MAP.get(exclude, {}),
     )
     df_internal = internal_file_loader.load()
 
+    filename = external_invoice.filename.lower()
+    columns_map = {
+        "fisa 709": ["Nr. doc.", "Cont  corespondent"],
+        "default": ["Nr. doc.", "Sume debitoare"],
+    }
+    columns = (
+        columns_map["fisa 709"]
+        if filename.startswith("fisa 709")
+        else columns_map["default"]
+    )
+    replace_z = filename.startswith("fisa 461")
+    invert_sign = filename.startswith("fisa 709")
+
     external_file_loader = ExcelInvoiceLoader(
-        file_path=external_invoice_file,
-        columns=["Nr. doc.", "Sume debitoare"],
+        file_path=external_invoice.file,
+        columns=columns,
         header_row=[7, 8],
-        replace_z=invoice_type == "FB",
+        replace_z=replace_z,
+        invert_sign=invert_sign,
         filters={},
     )
     df_external = external_file_loader.load()
@@ -116,13 +132,11 @@ def download_results(filename: str = Query(...)):
 @app.post("/read_data/", response_model=None)
 async def read_data(
     external_invoice: UploadFile = File(...),
-    invoice_type: Literal[*FILTER_MAP.keys()] = Form(...),
+    filter: Literal[*FILTER_MAP.keys()] = Form(None),
+    exclude: Literal[*EXCLUDE_FILTER_MAP.keys()] = Form(None),
 ):
     try:
-        data_ours, data_theirs = load_files(
-            invoice_type,
-            external_invoice.file if external_invoice else None,
-        )
+        data_ours, data_theirs = load_files(external_invoice, filter, exclude)
         if external_invoice:
             await external_invoice.close()
     except Exception as e:
@@ -139,14 +153,13 @@ async def read_data(
 
 @app.post("/compare/file")
 async def compare_data(
+    request: Request,
     external_invoice: UploadFile = File(...),
-    invoice_type: Literal[*FILTER_MAP.keys()] = Form(...),
+    filter: Literal[*FILTER_MAP.keys()] = Form(None),
+    exclude: Literal[*EXCLUDE_FILTER_MAP.keys()] = Form(None),
 ):
     try:
-        df_internal, df_external = load_files(
-            invoice_type,
-            external_invoice.file if external_invoice else None,
-        )
+        df_internal, df_external = load_files(external_invoice, filter, exclude)
 
         internal_file_loader_bulk = ExcelInvoiceLoader(
             file_path="docs/invoices_ours.xlsx",
@@ -161,6 +174,9 @@ async def compare_data(
 
         missing_in_ours_df = make_diff_dataframes(df_external, data_ours_bulk)
         mismatches = process_mismatches(df_external, df_internal)
+
+        output_xlsx = write_output_to_excel(mismatches)
+        download_url = f"{request.base_url}download-results?filename={output_xlsx}"
 
     except Exception as e:
         print(f"Error processing the invoice files {e}")
@@ -183,6 +199,7 @@ async def compare_data(
             "invoices": mismatches,
             "total": len(mismatches),
         },
+        "DOWNLOAD_URL": download_url,
     }
 
 
@@ -190,6 +207,8 @@ async def compare_data(
 async def compare_multi_data(
     request: Request,
     external_invoices: List[UploadFile] = File(...),
+    filter: Literal[*FILTER_MAP.keys()] = Form(None),
+    exclude: Literal[*EXCLUDE_FILTER_MAP.keys()] = Form(None),
 ):
     internal_file_loader = ExcelInvoiceLoader(
         file_path="docs/invoices_ours.xlsx",
@@ -200,7 +219,8 @@ async def compare_multi_data(
         ],
         header_row=5,
         replace_z=False,
-        exclude=EXCLUDE_FILTER_MAP.get("RECONCILIERI", {}),
+        filters=FILTER_MAP.get(filter, {}) if filter else None,
+        exclude=EXCLUDE_FILTER_MAP.get(exclude, {}) if exclude else None,
     )
     df_internal = internal_file_loader.load()
 

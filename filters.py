@@ -242,6 +242,16 @@ DIVERSE_FILTERS = {
     ),
 }
 
+AVANS_FILTERS = {
+    "Nume": (
+        "AVANS CLIENT",
+        "AVANS CLIENT 19%",
+        "AVANS CLIENT 9%",
+        "Avans servicii 19%",
+        "Avans servicii 9%",
+    ),
+}
+
 
 FILTER_MAP = {
     "FB": FB_FILTERS,
@@ -256,18 +266,9 @@ FILTER_MAP = {
     "NOSHOW": NOSHOW_FILTERS,
     "ROOMSERVICE": ROOMSERVICE_FILTERS,
     "DIVERSE": DIVERSE_FILTERS,
+    "AVANS": AVANS_FILTERS,
 }
 
-
-AVANS_FILTERS = {
-    "Nume": (
-        "AVANS CLIENT",
-        "AVANS CLIENT 19%",
-        "AVANS CLIENT 9%",
-        "Avans servicii 19%",
-        "Avans servicii 9%",
-    ),
-}
 
 TAXE_FILTERS = {
     "Nume": (
@@ -287,9 +288,9 @@ def build_exclude_filters(*filter_dicts):
 
 
 EXCLUDE_FILTER_MAP = {
-    "RECONCILIERI": build_exclude_filters(
+    "AVANS_&_TAXE": build_exclude_filters(
         AVANS_FILTERS,
-        # REDUCERI_FILTERS,
         TAXE_FILTERS,
-    )
+    ),
+    "TAXE": TAXE_FILTERS,
 }
