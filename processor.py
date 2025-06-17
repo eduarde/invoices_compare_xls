@@ -4,6 +4,26 @@ from abc import ABC, abstractmethod
 from decimal import Decimal, ROUND_HALF_UP
 
 
+def normalize_id(id_val):
+    """
+    Remove spaces/dashes, uppercase, and normalize numeric part for SWS prefix only.
+    Pads the numeric part to 9 digits only if it's less than 9 digits.
+    Leaves IDs with 9+ digits or non-numeric suffix unchanged.
+    """
+    if isinstance(id_val, str):
+        cleaned = re.sub(r"[\s\-]", "", id_val).upper()
+        m = re.match(r"(SWS)(\d+)$", cleaned)
+        if m:
+            prefix, num = m.groups()
+            if len(num) < 9:
+                num_padded = num.zfill(9)
+                return f"{prefix}{num_padded}"
+            else:
+                return cleaned  # Already 9 or more digits, do not change
+        return cleaned
+    return id_val
+
+
 def make_diff_dataframes(
     df_external: pd.DataFrame, df_internal: pd.DataFrame
 ) -> pd.DataFrame:
@@ -76,6 +96,7 @@ class ExcelInvoiceLoader(ETL):
         replace_z: bool = False,
         filters: dict = None,
         exclude: dict = None,
+        invert_sign: bool = False,
     ):
         self.file_path = file_path
         self.columns = columns
@@ -83,6 +104,7 @@ class ExcelInvoiceLoader(ETL):
         self.replace_z = replace_z
         self.filters = filters
         self.exclude = exclude
+        self.invert_sign = invert_sign
 
     @staticmethod
     def _excel_round(value):
@@ -148,13 +170,6 @@ class ExcelInvoiceLoader(ETL):
                         df = df[df[col] != str(val).stri1lp()]
         return df
 
-    @staticmethod
-    def normalize_id(id_val):
-        """Remove spaces and dashes, and uppercase the ID."""
-        if isinstance(id_val, str):
-            return re.sub(r"[\s\-]", "", id_val).upper()
-        return id_val
-
     def extract(self) -> pd.DataFrame:
         """
         Extracts specified columns from an Excel file and applies optional filters.
@@ -186,12 +201,16 @@ class ExcelInvoiceLoader(ETL):
             )
 
         df["_id"] = df["id"].astype(str)
-        df["id"] = df["id"].apply(self.normalize_id)
+        df["id"] = df["id"].apply(normalize_id)
 
         # Group and round
         df = df.groupby("id", as_index=False).agg({"value": "sum", "_id": "first"})
 
         df["value"] = df["value"].apply(self._excel_round)
+
+        if self.invert_sign:
+            df["value"] = -df["value"]
+
         return df
 
     def load(self) -> pd.DataFrame:
@@ -199,5 +218,36 @@ class ExcelInvoiceLoader(ETL):
         1. Extract data from an Excel file with specified columns
         2. Transforms the data by renaming and grouping
         """
+        df = self.extract()
+        return self.transform(df)
+
+
+class DataInvoiceLoader(ETL):
+    def __init__(self, data: list[pd.DataFrame]):
+        """
+        Initializes the DataInvoiceLoader with a list of DataFrames."""
+        self.data = data
+
+    def extract(self) -> pd.DataFrame:
+        """
+        Extracts data from list of dataframes and concatenates them into a single DataFrame.
+        """
+        if not self.data:
+            return pd.DataFrame(columns=["id", "value"])
+        return pd.concat(self.data, ignore_index=True)
+
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Transforms the DataFrame by renaming columns id and value,
+        grouping by the id column to sum the values, and normalizing the id."""
+
+        df["_id"] = df["id"].astype(str)
+        df["id"] = df["id"].apply(normalize_id)
+        df = df.groupby("id", as_index=False).agg({"value": "sum", "_id": "first"})
+        df["value"] = df["value"].apply(ExcelInvoiceLoader._excel_round)
+
+        return df
+
+    def load(self) -> pd.DataFrame:
+        """Concatenate and transform a list of DataFrames."""
         df = self.extract()
         return self.transform(df)
