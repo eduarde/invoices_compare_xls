@@ -8,9 +8,9 @@ We want to identify **discrepancies** between what we have internally and what h
 
 ### 📤 How it works
 
-* The **internal bulk invoice file** is used as the base reference.
+* The **internal invoice file** is uploaded via a form (in a web interface or API).
 * **Third-party invoice files** are uploaded via a form (in a web interface or API).
-* The tool processes and compares the two files, returning structured data or differences.
+* The tool processes and compares the external/3rd party files against the internal file, returning structured data or differences.
 
 ## 🚀 USAGE: ##
 

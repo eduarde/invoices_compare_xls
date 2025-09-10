@@ -293,9 +293,12 @@ EXCLUDE_FILTER_MAP = {
         AVANS_FILTERS,
         TAXE_FILTERS,
     ),
-
     "AVANS_TAXE_REDUCERI": build_exclude_filters(
         AVANS_FILTERS,
+        TAXE_FILTERS,
+        REDUCERI_FILTERS,
+    ),
+    "TAXE_REDUCERI": build_exclude_filters(
         TAXE_FILTERS,
         REDUCERI_FILTERS,
     ),

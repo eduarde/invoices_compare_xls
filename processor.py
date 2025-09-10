@@ -91,9 +91,10 @@ class ExcelInvoiceLoader(ETL):
     def __init__(
         self,
         file_path: str,
-        columns: list,
+        columns: tuple | list,
         header_row: int | list = 0,
         replace_z: bool = False,
+        remove_serie: bool = False,
         filters: dict = None,
         exclude: dict = None,
         invert_sign: bool = False,
@@ -102,6 +103,7 @@ class ExcelInvoiceLoader(ETL):
         self.columns = columns
         self.header_row = header_row
         self.replace_z = replace_z
+        self.remove_serie = remove_serie
         self.filters = filters
         self.exclude = exclude
         self.invert_sign = invert_sign
@@ -193,6 +195,9 @@ class ExcelInvoiceLoader(ETL):
         df = df.rename(columns={self.columns[0]: "id", self.columns[1]: "value"})
         df = df.dropna(subset=["id", "value"])
 
+        df["value"] = pd.to_numeric(df["value"], errors="coerce")
+        df = df.dropna(subset=["value"])
+
         if self.replace_z:
             df["id"] = df["id"].astype(str)
             df["id"] = df["id"].str.replace(r"^z(?=\d)", "Z ", regex=True)
@@ -200,8 +205,16 @@ class ExcelInvoiceLoader(ETL):
                 r"^Z (\d+)$", lambda m: f"BONF-{int(m.group(1)):07d}", regex=True
             )
 
-        df["_id"] = df["id"].astype(str)
+        if self.remove_serie:
+            # Remove SWS followed by 5 or more zeros from the start of id
+            df["id"] = df["id"].astype(str)
+            df["id"] = df["id"].str.replace(r"^SWS0{5,}", "", regex=True)
+
+        df["_id"] = df["id"].astype(str).str.strip()
         df["id"] = df["id"].apply(normalize_id)
+
+        # Ensure id is string and remove any trailing '.0'
+        df["id"] = df["id"].astype(str).str.replace(r"\.0$", "", regex=True)
 
         # Group and round
         df = df.groupby("id", as_index=False).agg({"value": "sum", "_id": "first"})
