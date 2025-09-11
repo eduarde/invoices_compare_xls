@@ -405,6 +405,7 @@ FILTER_462_01_01 = {
 
 FILTER_462_01_02 = {
     "Nume": (
+        "BQT Lunch Food(C)",
         "BQT Lunch Food (C)",
         "BQT Lunch NonAlcohol (C)",
         "Restaurant Lunch Food (C)",
@@ -416,7 +417,7 @@ FILTER_706_06 = {
     "Nume": ("Extra Sofa Bed"),
 }
 
-FILTER_704_01_P = {
+FILTER_704_04 = {
     "Nume": ("Parking"),
 }
 
@@ -511,7 +512,6 @@ FILES_FILTER_MAP = {
     "462.01.01": FILTER_462_01_01,
     "462.01.02": FILTER_462_01_02,
     "706.06": FILTER_706_06,
-    "704.01_P": FILTER_704_01_P,
     "709": FILTER_709,
     "446.01": FILTER_446_01,
     "708.05": FILTER_708_05,

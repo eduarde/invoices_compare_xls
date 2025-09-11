@@ -122,52 +122,6 @@ def write_output_to_excel(mismatches: list) -> str:
     return output_xlsx
 
 
-@app.get("/download-results")
-def download_results(filename: str = Query(...)):
-    file_path = f"docs/output/{filename}"
-    if os.path.exists(file_path):
-        return FileResponse(
-            path=file_path,
-            filename=filename,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-    return {"error": "File not found"}
-
-
-@app.post("/read_data/", response_model=None)
-async def read_data(
-    internal_invoice: UploadFile = File(...),
-    external_invoice: UploadFile = File(...),
-    filter: Literal[*FILTER_MAP.keys()] = Form(None),
-    exclude: Literal[*EXCLUDE_FILTER_MAP.keys()] = Form(None),
-):
-    try:
-        data_internal = load_dataframe(
-            internal_invoice,
-            COLUMNS_INTERNAL_INVOICES,
-            HEADER_ROW_INTERNAL_INVOICES,
-            filter=FILTER_MAP.get(filter, {}) if filter else None,
-            exclude=EXCLUDE_FILTER_MAP.get(exclude, {}) if exclude else None,
-        )
-
-        data_external = load_dataframe(
-            external_invoice,
-            _external_columns(external_invoice),
-            HEADER_ROW_EXTERNAL_INVOICES,
-        )
-
-    except Exception as e:
-        return {"Error processing the invoice files": str(e)}
-    finally:
-        close_resource(internal_invoice)
-        close_resource(external_invoice)
-
-    return {
-        "INVOICES_OURS": data_internal.to_dict(orient="records"),
-        "INVOICES_THEIRS": data_external.to_dict(orient="records"),
-    }
-
-
 def _compare_generic(
     request: Request,
     internal_invoice: UploadFile,
@@ -212,7 +166,12 @@ def _compare_generic(
     download_url = f"{request.base_url}download-results?filename={output_xlsx}"
 
     return {
-        "EXTERNAL_INVOICE_FILE": external_invoice.filename,
+        "INFO": {
+            "INTERNAL_INVOICE_FILE": internal_invoice.filename,
+            "FILTER_APPLIED": filter_dict,
+            "EXCLUDE_APPLIED": filter_dict,
+            "EXTERNAL_INVOICE_FILE": external_invoice.filename,
+        },
         "MISSING": {
             "description": "Invoices that are present in the external file but missing in our records.",
             "invoices": {
@@ -227,6 +186,61 @@ def _compare_generic(
             "total": len(mismatches),
         },
         "DOWNLOAD_URL": download_url,
+    }
+
+
+@app.get("/download-results")
+def download_results(filename: str = Query(...)):
+    file_path = f"docs/output/{filename}"
+    if os.path.exists(file_path):
+        return FileResponse(
+            path=file_path,
+            filename=filename,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    return {"error": "File not found"}
+
+
+@app.post("/read_data/", response_model=None)
+async def read_data(
+    internal_invoice: UploadFile = File(...),
+    external_invoice: UploadFile = File(...),
+    filter: Literal[*FILTER_MAP.keys()] = Form(None),
+    exclude: Literal[*EXCLUDE_FILTER_MAP.keys()] = Form(None),
+):
+    try:
+        filter_dict = FILTER_MAP.get(filter, {}) if filter else None
+        exclude_dict = EXCLUDE_FILTER_MAP.get(exclude, {}) if exclude else None
+
+        data_internal = load_dataframe(
+            internal_invoice,
+            COLUMNS_INTERNAL_INVOICES,
+            HEADER_ROW_INTERNAL_INVOICES,
+            filter=filter_dict,
+            exclude=exclude_dict,
+        )
+
+        data_external = load_dataframe(
+            external_invoice,
+            _external_columns(external_invoice),
+            HEADER_ROW_EXTERNAL_INVOICES,
+        )
+
+    except Exception as e:
+        return {"Error processing the invoice files": str(e)}
+    finally:
+        close_resource(internal_invoice)
+        close_resource(external_invoice)
+
+    return {
+        "INFO": {
+            "INTERNAL_INVOICE_FILE": internal_invoice.filename,
+            "FILTER_APPLIED": filter_dict,
+            "EXCLUDE_APPLIED": filter_dict,
+            "EXTERNAL_INVOICE_FILE": external_invoice.filename,
+        },
+        "INVOICES_OURS": data_internal.to_dict(orient="records"),
+        "INVOICES_THEIRS": data_external.to_dict(orient="records"),
     }
 
 
@@ -261,10 +275,10 @@ async def compare_saga_file(
     request: Request,
     internal_invoice: UploadFile = File(...),
     external_invoice: UploadFile = File(...),
-    filter: Literal[*FILES_FILTER_MAP.keys()] = Form(None),
 ):
     try:
-        # filter = FILES_FILTER_MAP.get(_extract_invoice_number_file(internal_invoice.filename.lower()), None)
+        filter = _extract_invoice_number_file(external_invoice.filename.lower())
+        print(filter)
 
         return _compare_generic(
             request,
@@ -291,12 +305,15 @@ async def compare_multi_data(
     exclude: Literal[*EXCLUDE_FILTER_MAP.keys()] = Form(None),
 ):
     try:
+        filter_dict = FILTER_MAP.get(filter, {}) if filter else None
+        exclude_dict = EXCLUDE_FILTER_MAP.get(exclude, {}) if exclude else None
+
         data_internal = load_dataframe(
             internal_invoice,
             COLUMNS_INTERNAL_INVOICES_MULTI,
             HEADER_ROW_INTERNAL_INVOICES,
-            filter=FILTER_MAP.get(filter, {}) if filter else None,
-            exclude=EXCLUDE_FILTER_MAP.get(exclude, {}) if exclude else None,
+            filter=filter_dict,
+            exclude=exclude_dict,
         )
 
         results, file_names = await _process_external_invoices(external_invoices)
@@ -310,7 +327,12 @@ async def compare_multi_data(
         download_url = f"{request.base_url}download-results?filename={output_xlsx}"
 
         return {
-            "EXTERNAL_INVOICE_FILE": ", ".join(file for file in file_names),
+            "INFO": {
+                "INTERNAL_INVOICE_FILE": internal_invoice.filename,
+                "FILTER_APPLIED": filter_dict,
+                "EXCLUDE_APPLIED": filter_dict,
+                "EXTERNAL_INVOICE_FILE": ", ".join(file for file in file_names),
+            },
             "MISSING": {
                 "description": "Invoices that are present in the external file but missing in our records.",
                 "invoices": {
