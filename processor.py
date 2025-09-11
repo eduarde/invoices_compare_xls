@@ -57,8 +57,8 @@ def process_mismatches(df_external: pd.DataFrame, df_internal: pd.DataFrame) -> 
     return mismatched_values.apply(
         lambda row: {
             "id": row["_id"],
-            "theirs": row["value_theirs"],
-            "ours": row["value_ours"],
+            "saga": row["value_theirs"],
+            "softone": row["value_ours"],
         },
         axis=1,
     ).tolist()

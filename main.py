@@ -1,11 +1,12 @@
 import os
+import re
 import uuid
 import pandas as pd
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Form, Request, Query
 from fastapi.responses import FileResponse
 from typing import Literal, List
-from filters import FILTER_MAP, EXCLUDE_FILTER_MAP
+from filters import FILTER_MAP, EXCLUDE_FILTER_MAP, FILES_FILTER_MAP
 from processor import (
     ExcelInvoiceLoader,
     DataInvoiceLoader,
@@ -23,6 +24,17 @@ from settings import (
 )
 
 app = FastAPI()
+
+
+def _extract_invoice_number_file(text: str) -> str | None:
+    """
+    Extracts the invoice number from a given text string.
+    Example: "saga 704.01 cazare iulie.xls 03.09.xls" -> "704.01"
+    """
+    match = re.search(r"\d+\.\d+", text)
+    if match:
+        return match.group(0)
+    return None
 
 
 def _external_columns(filename: str) -> list:
@@ -47,8 +59,8 @@ def load_dataframe(
     file: UploadFile,
     columns: tuple | list,
     headrow: int,
-    filter: str | None = None,
-    exclude: str | None = None,
+    filter: dict | None = None,
+    exclude: dict | None = None,
 ) -> pd.DataFrame | None:
     """
     Load a DataFrame from an uploaded Excel file with specified columns and filters."""
@@ -64,11 +76,9 @@ def load_dataframe(
                 replace_z=replace_z,
                 remove_serie=True,
                 invert_sign=invert_sign,
-                filters=FILTER_MAP.get(filter, {}) if filter else None,
-                exclude=EXCLUDE_FILTER_MAP.get(exclude, {}) if exclude else None,
+                filters=filter,
+                exclude=exclude,
             )
-
-            # print(file_loader)
         return file_loader.load()
     except Exception as e:
         print(f"Error loading file: {e}")
@@ -136,10 +146,9 @@ async def read_data(
             internal_invoice,
             COLUMNS_INTERNAL_INVOICES,
             HEADER_ROW_INTERNAL_INVOICES,
-            filter,
-            exclude,
+            filter=FILTER_MAP.get(filter, {}) if filter else None,
+            exclude=EXCLUDE_FILTER_MAP.get(exclude, {}) if exclude else None,
         )
-        print(data_internal)
 
         data_external = load_dataframe(
             external_invoice,
@@ -159,6 +168,68 @@ async def read_data(
     }
 
 
+def _compare_generic(
+    request: Request,
+    internal_invoice: UploadFile,
+    external_invoice: UploadFile,
+    filter_key,
+    filter_map,
+    use_exclude=True,
+    exclude_key=None,
+):
+    # Prepare filter and exclude
+    filter_dict = filter_map.get(filter_key, {}) if filter_key else None
+    exclude_dict = (
+        EXCLUDE_FILTER_MAP.get(exclude_key, {})
+        if (use_exclude and exclude_key)
+        else None
+    )
+
+    data_internal = load_dataframe(
+        internal_invoice,
+        COLUMNS_INTERNAL_INVOICES_MULTI,
+        HEADER_ROW_INTERNAL_INVOICES,
+        filter=filter_dict,
+        exclude=exclude_dict,
+    )
+
+    data_external = load_dataframe(
+        external_invoice,
+        _external_columns(external_invoice),
+        HEADER_ROW_EXTERNAL_INVOICES,
+    )
+
+    data_internal_all = load_dataframe(
+        internal_invoice,
+        COLUMNS_INTERNAL_INVOICES_ALL,
+        HEADER_ROW_INTERNAL_INVOICES,
+    )
+
+    missing_in_ours_df = make_diff_dataframes(data_external, data_internal_all)
+    mismatches = process_mismatches(data_external, data_internal)
+
+    output_xlsx = write_output_to_excel(mismatches)
+    download_url = f"{request.base_url}download-results?filename={output_xlsx}"
+
+    return {
+        "EXTERNAL_INVOICE_FILE": external_invoice.filename,
+        "MISSING": {
+            "description": "Invoices that are present in the external file but missing in our records.",
+            "invoices": {
+                "id_view": ", ".join(item["id"] for item in missing_in_ours_df),
+                "detail_view": missing_in_ours_df,
+            },
+            "total": len(missing_in_ours_df),
+        },
+        "MISMATCH": {
+            "description": "Invoices that have mismatched values between the external file and our records.",
+            "invoices": mismatches,
+            "total": len(mismatches),
+        },
+        "DOWNLOAD_URL": download_url,
+    }
+
+
 @app.post("/compare/file")
 async def compare_data(
     request: Request,
@@ -168,49 +239,41 @@ async def compare_data(
     exclude: Literal[*EXCLUDE_FILTER_MAP.keys()] = Form(None),
 ):
     try:
-        data_internal = load_dataframe(
+        return _compare_generic(
+            request,
             internal_invoice,
-            COLUMNS_INTERNAL_INVOICES,
-            HEADER_ROW_INTERNAL_INVOICES,
-            filter,
-            exclude,
-        )
-
-        data_external = load_dataframe(
             external_invoice,
-            _external_columns(external_invoice),
-            HEADER_ROW_EXTERNAL_INVOICES,
+            filter,
+            FILTER_MAP,
+            use_exclude=True,
+            exclude_key=exclude,
         )
 
-        data_internal_all = load_dataframe(
+    except Exception as e:
+        print(f"Error processing the invoice files {e}")
+    finally:
+        close_resource(internal_invoice)
+        close_resource(external_invoice)
+
+
+@app.post("/compare/saga/softone/file")
+async def compare_saga_file(
+    request: Request,
+    internal_invoice: UploadFile = File(...),
+    external_invoice: UploadFile = File(...),
+    filter: Literal[*FILES_FILTER_MAP.keys()] = Form(None),
+):
+    try:
+        # filter = FILES_FILTER_MAP.get(_extract_invoice_number_file(internal_invoice.filename.lower()), None)
+
+        return _compare_generic(
+            request,
             internal_invoice,
-            COLUMNS_INTERNAL_INVOICES_ALL,
-            HEADER_ROW_INTERNAL_INVOICES,
+            external_invoice,
+            filter,
+            FILES_FILTER_MAP,
+            use_exclude=False,
         )
-
-        missing_in_ours_df = make_diff_dataframes(data_external, data_internal_all)
-        mismatches = process_mismatches(data_external, data_internal)
-
-        output_xlsx = write_output_to_excel(mismatches)
-        download_url = f"{request.base_url}download-results?filename={output_xlsx}"
-
-        return {
-            "EXTERNAL_INVOICE_FILE": external_invoice.filename,
-            "MISSING": {
-                "description": "Invoices that are present in the external file but missing in our records.",
-                "invoices": {
-                    "id_view": ", ".join(item["id"] for item in missing_in_ours_df),
-                    "detail_view": missing_in_ours_df,
-                },
-                "total": len(missing_in_ours_df),
-            },
-            "MISMATCH": {
-                "description": "Invoices that have mismatched values between the external file and our records.",
-                "invoices": mismatches,
-                "total": len(mismatches),
-            },
-            "DOWNLOAD_URL": download_url,
-        }
 
     except Exception as e:
         print(f"Error processing the invoice files {e}")
