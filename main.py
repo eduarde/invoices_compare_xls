@@ -30,8 +30,10 @@ def _extract_invoice_number_file(text: str) -> str | None:
     """
     Extracts the invoice number from a given text string.
     Example: "saga 704.01 cazare iulie.xls 03.09.xls" -> "704.01"
+            "fisa 462.01.01 something.xls" -> "462.01.01"
+            "fisa 419 ceva.xls" -> "419"
     """
-    match = re.search(r"\d+\.\d+", text)
+    match = re.search(r"\d+(?:\.\d+)+|\d+", text)
     if match:
         return match.group(0)
     return None
@@ -122,6 +124,14 @@ def write_output_to_excel(mismatches: list) -> str:
     return output_xlsx
 
 
+def __debug_df(df: pd.DataFrame, label: str, id: str):
+    print(f"{label} ALL")
+    print(df)
+    row = df[df["_id"] == id]
+    print(f"{label}")
+    print(row)
+
+
 def _compare_generic(
     request: Request,
     internal_invoice: UploadFile,
@@ -133,6 +143,7 @@ def _compare_generic(
 ):
     # Prepare filter and exclude
     filter_dict = filter_map.get(filter_key, {}) if filter_key else None
+    print("Applying filter for file:", filter_dict)
     exclude_dict = (
         EXCLUDE_FILTER_MAP.get(exclude_key, {})
         if (use_exclude and exclude_key)
@@ -146,6 +157,8 @@ def _compare_generic(
         filter=filter_dict,
         exclude=exclude_dict,
     )
+
+    # __debug_df(data_internal, "INTERNAL", "7980")
 
     data_external = load_dataframe(
         external_invoice,
@@ -169,7 +182,7 @@ def _compare_generic(
         "INFO": {
             "INTERNAL_INVOICE_FILE": internal_invoice.filename,
             "FILTER_APPLIED": filter_dict,
-            "EXCLUDE_APPLIED": filter_dict,
+            "EXCLUDE_APPLIED": exclude_dict,
             "EXTERNAL_INVOICE_FILE": external_invoice.filename,
         },
         "MISSING": {
@@ -182,7 +195,10 @@ def _compare_generic(
         },
         "MISMATCH": {
             "description": "Invoices that have mismatched values between the external file and our records.",
-            "invoices": mismatches,
+            "invoices": {
+                "id_view": ", ".join(item["id"] for item in mismatches),
+                "detail_view": mismatches,
+            },
             "total": len(mismatches),
         },
         "DOWNLOAD_URL": download_url,
@@ -236,7 +252,7 @@ async def read_data(
         "INFO": {
             "INTERNAL_INVOICE_FILE": internal_invoice.filename,
             "FILTER_APPLIED": filter_dict,
-            "EXCLUDE_APPLIED": filter_dict,
+            "EXCLUDE_APPLIED": exclude_dict,
             "EXTERNAL_INVOICE_FILE": external_invoice.filename,
         },
         "INVOICES_OURS": data_internal.to_dict(orient="records"),
@@ -330,7 +346,7 @@ async def compare_multi_data(
             "INFO": {
                 "INTERNAL_INVOICE_FILE": internal_invoice.filename,
                 "FILTER_APPLIED": filter_dict,
-                "EXCLUDE_APPLIED": filter_dict,
+                "EXCLUDE_APPLIED": exclude_dict,
                 "EXTERNAL_INVOICE_FILE": ", ".join(file for file in file_names),
             },
             "MISSING": {

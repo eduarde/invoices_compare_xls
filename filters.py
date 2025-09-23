@@ -332,7 +332,8 @@ FILTER_704_05 = {
 FILTER_707_01_01 = {
     "Nume": (
         "Apa Minerala Aura 0.33ml",
-        "Apa Plata Aura 0.33 mlApa Plata Sticla 750ml",
+        "Apa Plata Aura 0.33 ml",
+        "Apa Plata Sticla 750ml",
         "Aqua Carpatica Minerala 330ml ST(12)/BAX",
         "Aqua Carpatica Plata 330ml SGR",
         "Aqua Carpatica Plata 750ml",
@@ -358,14 +359,14 @@ FILTER_704_02 = {
         "Neroli Blossom Sensory Massage 50'",
         "Neroli Blossom Sensory Massage 80'",
         "Niance DeluxeAAging Facial 80'",
-        "Purovel Montain Stone Massage 80'",
+        "Purovel Montain Stone Massage 80",
         "Reflexology 50'",
         "Refreshing Relaxation Massage 50'",
         "Refreshing Relaxation Massage 80'",
         "SPA Fitness",
         "SPA Treatment",
         "Wellbeing Muscle Recovery Massage 50'",
-        "WELLBEING MUSCLE RECOVERY MASSAGE 80'",
+        "WELLBEING MUSCLE RECOVERY MASSAGE 80",
     ),
 }
 
@@ -413,7 +414,7 @@ FILTER_462_01_02 = {
     ),
 }
 
-FILTER_706_06 = {
+FILTER_704_06 = {
     "Nume": ("Extra Sofa Bed"),
 }
 
@@ -471,7 +472,7 @@ FILTER_707_01_02 = {
         "Rachiu de prune 50ml",
         "Red Bull 0.250ml/24",
         "Red Wine 375ml Santa Sofia",
-        "Sampanie Moet&Chandon Imperial 0.2L",
+        "Sampanie Moet&Chandon Imperial 0.2L/24",
         "Tableta ciocolata cu lapte 50g.",
         "Tableta ciocolata neagra 50g.",
         "Whisky Glenfiddich 40% 0.05L",
@@ -500,7 +501,7 @@ FILES_FILTER_MAP = {
     "707.03": FILTER_707_03,
     "704.05": FILTER_704_05,
     "707.01.01": FILTER_707_01_01,
-    "758.1.01": FILTER_7581_01,
+    "7581.01": FILTER_7581_01,
     "704.04": FILTER_704_04,
     "704.02": FILTER_704_02,
     "706.01": FILTER_706_01,
@@ -511,7 +512,7 @@ FILES_FILTER_MAP = {
     "462.01.03": FILTER_462_01_03,
     "462.01.01": FILTER_462_01_01,
     "462.01.02": FILTER_462_01_02,
-    "706.06": FILTER_706_06,
+    "704.06": FILTER_704_06,
     "709": FILTER_709,
     "446.01": FILTER_446_01,
     "708.05": FILTER_708_05,

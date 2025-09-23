@@ -10,6 +10,15 @@ def normalize_id(id_val):
     Pads the numeric part to 9 digits only if it's less than 9 digits.
     Leaves IDs with 9+ digits or non-numeric suffix unchanged.
     """
+    # Handle numeric types (int, float)
+    if isinstance(id_val, float):
+        if id_val.is_integer():
+            id_val = str(int(id_val))
+        else:
+            id_val = str(id_val)
+    elif isinstance(id_val, int):
+        id_val = str(id_val)
+
     if isinstance(id_val, str):
         cleaned = re.sub(r"[\s\-]", "", id_val).upper()
         m = re.match(r"(SWS)(\d+)$", cleaned)
@@ -20,6 +29,8 @@ def normalize_id(id_val):
                 return f"{prefix}{num_padded}"
             else:
                 return cleaned  # Already 9 or more digits, do not change
+        # Remove trailing .0 if present (e.g., "7880.0" -> "7880")
+        cleaned = re.sub(r"\.0$", "", cleaned)
         return cleaned
     return id_val
 
@@ -47,8 +58,12 @@ def process_mismatches(df_external: pd.DataFrame, df_internal: pd.DataFrame) -> 
     It returns a list of dictionaries with the 'id', 'theirs' (external value),
     and 'ours' (internal value) for mismatched entries where the absolute difference in 'value'."""
     merged_df = pd.merge(
-        df_external, df_internal, on="_id", suffixes=("_theirs", "_ours")
-    )
+        df_external,
+        df_internal,
+        on="_id",
+        suffixes=("_theirs", "_ours"),
+        how="outer",
+    ).fillna(0)
 
     mismatched_values = merged_df[
         (merged_df["value_theirs"] - merged_df["value_ours"]).abs() >= 0.1
@@ -156,6 +171,7 @@ class ExcelInvoiceLoader(ETL):
                         df = df[df[col].isin(val)]
                     else:
                         df = df[df[col] == val]
+
         return df
 
     def _apply_exclude(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -210,8 +226,9 @@ class ExcelInvoiceLoader(ETL):
             df["id"] = df["id"].astype(str)
             df["id"] = df["id"].str.replace(r"^SWS0{5,}", "", regex=True)
 
-        df["_id"] = df["id"].astype(str).str.strip()
         df["id"] = df["id"].apply(normalize_id)
+        df["_id"] = df["id"].astype(str).str.strip()
+        
 
         # Ensure id is string and remove any trailing '.0'
         df["id"] = df["id"].astype(str).str.replace(r"\.0$", "", regex=True)
